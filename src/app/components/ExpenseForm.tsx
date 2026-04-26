@@ -36,6 +36,9 @@ export function ExpenseForm({ onCreated }: ExpenseFormProps) {
 
   const form = useForm<ExpenseCreateInput>({
     resolver: zodResolver(expenseCreateSchema, undefined, { raw: true }),
+    mode: "onChange",
+    reValidateMode: "onChange",
+    shouldFocusError: true,
     defaultValues: {
       idempotencyKey: "",
       amount: "",
@@ -114,14 +117,19 @@ export function ExpenseForm({ onCreated }: ExpenseFormProps) {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="space-y-2">
           <label className="text-xs font-semibold text-neutral-400">Amount</label>
-          <Input placeholder="0.00" {...form.register("amount")} />
+          <Input
+            placeholder="0.00"
+            inputMode="decimal"
+            autoComplete="off"
+            {...form.register("amount")}
+          />
           {errors.amount && (
             <p className="text-xs text-red-400">{errors.amount.message}</p>
           )}
         </div>
         <div className="space-y-2">
           <label className="text-xs font-semibold text-neutral-400">Date</label>
-          <Input type="date" {...form.register("date")} />
+          <Input type="date" autoComplete="off" {...form.register("date")} />
           {errors.date && (
             <p className="text-xs text-red-400">{errors.date.message}</p>
           )}
