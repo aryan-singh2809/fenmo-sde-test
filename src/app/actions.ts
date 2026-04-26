@@ -32,9 +32,14 @@ const serializeExpense = (expense: DbExpense): Expense => ({
   updatedAt: expense.updatedAt,
 });
 
-const formatZodError = (error: unknown) => {
-  if (error instanceof Error) return error.message;
-  return "Invalid input";
+const formatServerError = (error: unknown) => {
+  if (error instanceof Error) {
+    if (error.name.includes("Prisma") || error.message.includes("Prisma")) {
+      return "A database error occurred. Please try again.";
+    }
+    return "An unexpected error occurred.";
+  }
+  return "Invalid request";
 };
 
 const requireUser = async (): Promise<{ id: string; name?: string | null; email?: string | null }> => {
@@ -53,6 +58,9 @@ export async function registerUserAction(
   _prevState: AuthActionState,
   formData: FormData
 ): Promise<AuthActionState> {
+  // Artificial delay to mitigate brute force attempts
+  await new Promise((resolve) => setTimeout(resolve, 800));
+
   const parsed = registerSchema.safeParse({
     name: formData.get("name"),
     email: formData.get("email"),
@@ -112,6 +120,9 @@ export async function loginUserAction(
   _prevState: AuthActionState,
   formData: FormData
 ): Promise<AuthActionState> {
+  // Artificial delay to mitigate brute force attempts
+  await new Promise((resolve) => setTimeout(resolve, 800));
+
   const parsed = loginSchema.safeParse({
     email: formData.get("email"),
     password: formData.get("password"),
@@ -185,22 +196,25 @@ export async function createExpenseAction(
   }
 
   const input: ExpenseCreate = parsed.data;
-  const user = await requireUser();
-
-  const existing = await db.expense.findUnique({
-    where: {
-      userId_idempotencyKey: {
-        userId: user.id,
-        idempotencyKey: input.idempotencyKey,
-      },
-    },
-  });
-
-  if (existing) {
-    return { success: true, data: serializeExpense(existing) };
-  }
+  let userId = "";
 
   try {
+    const user = await requireUser();
+    userId = user.id;
+
+    const existing = await db.expense.findUnique({
+      where: {
+        userId_idempotencyKey: {
+          userId,
+          idempotencyKey: input.idempotencyKey,
+        },
+      },
+    });
+
+    if (existing) {
+      return { success: true, data: serializeExpense(existing) };
+    }
+
     const created = await db.expense.create({
       data: {
         idempotencyKey: input.idempotencyKey,
@@ -208,7 +222,7 @@ export async function createExpenseAction(
         date: input.date,
         category: input.category,
         description: input.description,
-        userId: user.id,
+        userId,
       },
     });
 
@@ -221,7 +235,7 @@ export async function createExpenseAction(
       const duplicate = await db.expense.findUnique({
         where: {
           userId_idempotencyKey: {
-            userId: user.id,
+            userId,
             idempotencyKey: input.idempotencyKey,
           },
         },
@@ -234,14 +248,16 @@ export async function createExpenseAction(
       return { success: false, error: "Duplicate idempotency key" };
     }
 
-    return { success: false, error: formatZodError(error) };
+    return { success: false, error: formatServerError(error) };
   }
 }
 
 export async function getExpensesAction(filters: {
   category?: ExpenseCategory;
   sort?: "date_desc" | "date_asc";
-}): Promise<ActionResponse<Expense[]>> {
+  page?: number;
+  limit?: number;
+}): Promise<ActionResponse<{ expenses: Expense[]; totalCount: number }>> {
   try {
     const user = await requireUser();
     const where = {
@@ -252,14 +268,29 @@ export async function getExpensesAction(filters: {
       date: filters.sort === "date_asc" ? "asc" : "desc",
     } as const;
 
-    const expenses = await db.expense.findMany({
-      where,
-      orderBy,
-    });
+    const page = filters.page ?? 1;
+    const limit = filters.limit ?? 10;
+    const skip = (page - 1) * limit;
 
-    return { success: true, data: expenses.map(serializeExpense) };
+    const [expenses, totalCount] = await Promise.all([
+      db.expense.findMany({
+        where,
+        orderBy,
+        skip,
+        take: limit,
+      }),
+      db.expense.count({ where }),
+    ]);
+
+    return {
+      success: true,
+      data: {
+        expenses: expenses.map(serializeExpense),
+        totalCount,
+      },
+    };
   } catch (error) {
-    return { success: false, error: formatZodError(error) };
+    return { success: false, error: formatServerError(error) };
   }
 }
 
@@ -282,7 +313,7 @@ export async function getExpenseSummaryAction(filters: {
 
     return { success: true, data: { total } };
   } catch (error) {
-    return { success: false, error: formatZodError(error) };
+    return { success: false, error: formatServerError(error) };
   }
 }
 
@@ -312,6 +343,6 @@ export async function deleteExpenseAction(
 
     return { success: true, data: { deleted: true } };
   } catch (error) {
-    return { success: false, error: formatZodError(error) };
+    return { success: false, error: formatServerError(error) };
   }
 }

@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
-import { ArrowDownUp, Wallet } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState, useTransition, useRef } from "react";
+import { ArrowDownUp, Wallet, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import {
   expenseCategorySchema,
@@ -18,21 +18,30 @@ type ExpenseCategory = ExpenseCreateInput["category"];
 type Filters = {
   category?: ExpenseCategory;
   sort: "date_desc" | "date_asc";
+  page: number;
 };
 
 type DashboardProps = {
   user: { name: string | null; email: string | null } | null;
+  initialExpensesData: { expenses: Expense[]; totalCount: number };
+  initialTotal: string;
 };
 
 const categories = expenseCategorySchema.options;
+const LIMIT = 10;
 
-export function Dashboard({ user }: DashboardProps) {
-  const [filters, setFilters] = useState<Filters>({ sort: "date_desc" });
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [total, setTotal] = useState("0.00");
-  const [isLoading, setIsLoading] = useState(true);
+export function Dashboard({ user, initialExpensesData, initialTotal }: DashboardProps) {
+  const [filters, setFilters] = useState<Filters>({ sort: "date_desc", page: 1 });
+  const [expenses, setExpenses] = useState<Expense[]>(initialExpensesData.expenses);
+  const [totalCount, setTotalCount] = useState(initialExpensesData.totalCount);
+  const [total, setTotal] = useState(initialTotal);
+  
+  // Start loading as false because we have SSR initial data
+  const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  const initialLoadRef = useRef(true);
 
   const currencyFormatter = useMemo(
     () => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }),
@@ -43,6 +52,8 @@ export function Dashboard({ user }: DashboardProps) {
     () => currencyFormatter.format(Number(total || 0)),
     [currencyFormatter, total]
   );
+  
+  const totalPages = Math.ceil(totalCount / LIMIT) || 1;
 
   const fetchData = useCallback(async (activeFilters: Filters) => {
     setIsLoading(true);
@@ -51,6 +62,8 @@ export function Dashboard({ user }: DashboardProps) {
       getExpensesAction({
         category: activeFilters.category,
         sort: activeFilters.sort,
+        page: activeFilters.page,
+        limit: LIMIT,
       }),
       getExpenseSummaryAction({ category: activeFilters.category }),
     ]);
@@ -58,9 +71,11 @@ export function Dashboard({ user }: DashboardProps) {
     if (!expensesResult.success) {
       toast.error(expensesResult.error);
       setExpenses([]);
+      setTotalCount(0);
       setErrorMessage(expensesResult.error);
     } else {
-      setExpenses(expensesResult.data);
+      setExpenses(expensesResult.data.expenses);
+      setTotalCount(expensesResult.data.totalCount);
     }
 
     if (!summaryResult.success) {
@@ -75,14 +90,21 @@ export function Dashboard({ user }: DashboardProps) {
   }, []);
 
   useEffect(() => {
+    // Skip fetching on initial mount since we use SSR pre-fetched data
+    if (initialLoadRef.current) {
+      initialLoadRef.current = false;
+      return;
+    }
     startTransition(() => {
       void fetchData(filters);
     });
   }, [fetchData, filters]);
 
   const handleCreated = useCallback(() => {
+    // When a new expense is created/deleted, force fetch the first page for fresh data
+    setFilters((prev) => ({ ...prev, page: 1 }));
     startTransition(() => {
-      void fetchData(filters);
+      void fetchData({ ...filters, page: 1 });
     });
   }, [fetchData, filters]);
 
@@ -90,6 +112,7 @@ export function Dashboard({ user }: DashboardProps) {
     setFilters((prev) => ({
       ...prev,
       category: value ? (value as ExpenseCategory) : undefined,
+      page: 1, // reset page on filter change
     }));
   }, []);
 
@@ -97,11 +120,16 @@ export function Dashboard({ user }: DashboardProps) {
     setFilters((prev) => ({
       ...prev,
       sort: prev.sort === "date_desc" ? "date_asc" : "date_desc",
+      page: 1, // reset page on sort change
     }));
   }, []);
 
   const clearFilters = useCallback(() => {
-    setFilters((prev) => ({ sort: prev.sort }));
+    setFilters((prev) => ({ sort: prev.sort, page: 1 }));
+  }, []);
+
+  const handlePageChange = useCallback((newPage: number) => {
+    setFilters((prev) => ({ ...prev, page: newPage }));
   }, []);
 
   const handleRetry = useCallback(() => {
@@ -200,18 +228,53 @@ export function Dashboard({ user }: DashboardProps) {
               </div>
             )}
 
-            <ExpenseTable
-              expenses={expenses}
-              isLoading={isBusy}
-              emptyActionLabel={filters.category ? "Clear filters" : undefined}
-              onEmptyAction={filters.category ? clearFilters : undefined}
-              onDeleted={handleCreated}
-              emptyHint={
-                filters.category
-                  ? "No expenses match this category yet."
-                  : "Add a new expense to see it here."
-              }
-            />
+            <div className="space-y-3">
+              <ExpenseTable
+                expenses={expenses}
+                isLoading={isBusy && expenses.length === 0}
+                emptyActionLabel={filters.category ? "Clear filters" : undefined}
+                onEmptyAction={filters.category ? clearFilters : undefined}
+                onDeleted={handleCreated}
+                emptyHint={
+                  filters.category
+                    ? "No expenses match this category yet."
+                    : "Add a new expense to see it here."
+                }
+              />
+
+              {totalCount > 0 && (
+                <div className="flex items-center justify-between rounded-lg border border-neutral-800 bg-neutral-900/40 px-4 py-2 text-sm text-neutral-400">
+                  <span>
+                    Showing {(filters.page - 1) * LIMIT + 1} to{" "}
+                    {Math.min(filters.page * LIMIT, totalCount)} of {totalCount}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => handlePageChange(filters.page - 1)}
+                      disabled={filters.page === 1 || isBusy}
+                      className="px-2"
+                    >
+                      <ChevronLeft size={16} />
+                    </Button>
+                    <span className="font-medium text-neutral-300">
+                      Page {filters.page} of {totalPages}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => handlePageChange(filters.page + 1)}
+                      disabled={filters.page === totalPages || isBusy}
+                      className="px-2"
+                    >
+                      <ChevronRight size={16} />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+
           </div>
         </section>
       </div>

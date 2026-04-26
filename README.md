@@ -53,11 +53,16 @@ A high-performance web application built for the Fenmo SDE Technical Assessment.
 - **Filter by category** and **sort by date** (newest/oldest).
 
 ### 🎨 UX & Reliability
+- **Server Side Rendered UX:** Dashboard is fully populated by SSR on the initial navigation (`page.tsx`), meaning zero "Wait Times" or "Loading Spinners" on first paint.
 - **Server Actions** for all data mutations and queries — no API routes needed for CRUD.
-- **Loading skeletons** and transition states keep the UI responsive.
-- **Error boundary** (`error.tsx`) with retry functionality.
-- **Toast notifications** (via Sonner) for success/error feedback.
-- **Responsive design** optimized for desktop and mobile.
+- **Error Obfuscation** catches hard DB errors (like Prisma out-of-range limits) and converts them into safe, opaque UI warnings to prevent topology information leakage.
+- **Transitions** and loading skeletons keep the UI responsive during active hydration state changes.
+
+### 🛡 Core Security & Bounds
+- **DDoS Mitigation:** Artificial execution delays are intentionally injected into `register` and `login` server actions to mathematically disrupt automated brute-force scripts.
+- **Global HTTP Security Headers:** Standard secure defense lines (`nosniff`, `DENY` frame-options, `HSTS` transport security) are enforced actively over edge routing via `next.config.ts`.
+- **Strict Data Bounds:** Database input limits are strictly fenced by Zod refinement algorithms. Users cannot input expenses greater than what PostgreSQL's Decimal allocations can store, nor drift dates beyond `2000-2100`.
+- **Unhandled Exception Closure:** Database operations execute robust runtime `try/catch` wrappers spanning across Session closures. Timeouts gracefully degrade into controlled UI warnings instead of Next.js Server (500) unhandled runtime crashes.
 
 ---
 
@@ -195,6 +200,7 @@ This application is optimized for deployment on [Vercel](https://vercel.com/).
 - **Atomic refresh:** After deletion, both the expense list and total summary are re-fetched to ensure consistency.
 
 ### Performance & Scalability
+- **Offset Pagination:** Expenses tables utilize `skip/take` queries to pull batches (10 per page max). It prevents heavy RAM exhaustion or rendering crashes when mapping users with extensive historical timelines.
 - **Indexes:** `category`, `date`, and `userId` are indexed for $O(\log n)$ filters and sorts.
 - **Server Actions:** Mutations and queries run on the server to keep logic secure and fast.
 - **Prisma singleton:** Prevents connection churn in serverless environments.
@@ -205,7 +211,7 @@ This application is optimized for deployment on [Vercel](https://vercel.com/).
 
 ### Trade-offs
 - **Native select:** Standard HTML `select` (styled) was chosen for reliability and accessibility over more complex UI abstractions.
-- **No pagination:** All expenses are loaded at once. For production with large datasets, cursor-based pagination would be recommended.
+- **Offset vs Cursor Pagination:** For the scope of this project, offset pagination was implemented due to its deterministic ordering. Highly active production feeds might prefer cursor logic for stability against real-time drifting.
 
 ---
 

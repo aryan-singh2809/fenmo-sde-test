@@ -23,11 +23,17 @@ export const expenseCreateSchema = z.object({
   amount: z
     .string()
     .trim()
-    .regex(moneyRegex, "Amount must be a non-negative number with up to 2 decimals"),
+    .regex(moneyRegex, "Amount must be a non-negative number with up to 2 decimals")
+    .refine((val) => Number(val) > 0, "Amount must be greater than 0")
+    .refine((val) => Number(val) <= 99999999.99, "Amount exceeds maximum limit"),
   date: z
     .string()
     .trim()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format")
+    .refine((value) => {
+      const d = new Date(`${value}T00:00:00Z`);
+      return d >= new Date("2000-01-01T00:00:00Z") && d <= new Date("2100-01-01T00:00:00Z");
+    }, "Date must be between year 2000 and 2100")
     .transform((value) => new Date(`${value}T00:00:00Z`)),
   category: expenseCategorySchema,
   description: z
