@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId } from "react";
+import { useCallback, useEffect, useId } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ClipboardCheck } from "lucide-react";
@@ -50,14 +50,19 @@ export function ExpenseForm({ onCreated }: ExpenseFormProps) {
 
   const { isSubmitting, errors } = form.formState;
 
-  useEffect(() => {
+  const rotateIdempotencyKey = useCallback(() => {
     const key = createIdempotencyKey();
     form.setValue("idempotencyKey", key, {
       shouldDirty: false,
       shouldValidate: false,
       shouldTouch: false,
     });
+    return key;
   }, [form]);
+
+  useEffect(() => {
+    rotateIdempotencyKey();
+  }, [rotateIdempotencyKey]);
 
   const onSubmit = form.handleSubmit(async (values) => {
     const result = await createExpenseAction(values);
@@ -68,14 +73,16 @@ export function ExpenseForm({ onCreated }: ExpenseFormProps) {
     }
 
     toast.success("Expense saved");
-    const nextKey = createIdempotencyKey();
-
     form.reset({
-      idempotencyKey: nextKey,
+      idempotencyKey: rotateIdempotencyKey(),
       amount: "",
       date: getToday(),
       category: values.category,
       description: "",
+    }, {
+      keepErrors: false,
+      keepDirty: false,
+      keepTouched: false,
     });
 
     onCreated?.();
