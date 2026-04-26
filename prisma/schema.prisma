@@ -27,11 +27,27 @@ model Expense {
   category        ExpenseCategory
   date            DateTime        @db.Date
   description     String          @db.VarChar(500)
-  idempotencyKey  String          @unique @map("idempotency_key")
+  idempotencyKey  String          @map("idempotency_key")
+  userId          String          @map("user_id")
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt       DateTime        @default(now()) @map("created_at")
   updatedAt       DateTime        @updatedAt @map("updated_at")
 
+  @@index([userId])
   @@index([category])
   @@index([date])
+  @@unique([userId, idempotencyKey])
   @@map("expenses")
+}
+
+model User {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  password  String
+  name      String?
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  expenses  Expense[]
+
+  @@map("users")
 }

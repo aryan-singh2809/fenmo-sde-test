@@ -43,6 +43,21 @@ export const expenseSchema = expenseCreateSchema.extend({
   updatedAt: z.date(),
 });
 
+export const loginSchema = z.object({
+  email: z.string().trim().toLowerCase().email("Valid email is required"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+});
+
+export const registerSchema = loginSchema.extend({
+  name: z
+    .string()
+    .trim()
+    .min(2, "Name must be at least 2 characters")
+    .max(80, "Name must be at most 80 characters"),
+});
+
 export type ExpenseCreateInput = z.input<typeof expenseCreateSchema>;
 export type ExpenseCreate = z.output<typeof expenseCreateSchema>;
 export type Expense = z.output<typeof expenseSchema>;
+export type LoginInput = z.input<typeof loginSchema>;
+export type RegisterInput = z.input<typeof registerSchema>;
