@@ -33,6 +33,16 @@ A high-performance web application built for the Fenmo SDE Technical Assessment.
 
 ---
 
+## ✨ Product Highlights
+
+- **Idempotent writes** via client-generated UUIDs and a unique DB constraint.
+- **Precise money handling** with Prisma `Decimal(10,2)`.
+- **Server Actions** for secure data mutations and queries.
+- **Real-time summary** that respects filters and sorting.
+- **Resilient UX** with loading states, retry UI, and an error boundary.
+
+---
+
 ## ⚡ Performance & Optimization
 
 This project is built with a focus on modern web performance standards:
@@ -60,8 +70,11 @@ npm install
 ### 3. Configure Environment Variables
 Create a `.env` file in the root of the project and add your database connection string:
 ```env
-DATABASE_URL="postgresql://[user]:[password]@[host]/neondb?sslmode=require"
+DATABASE_URL="postgresql://[user]:[password]@[host]/neondb?sslmode=require"   # Neon pooler URL for the app
+DIRECT_URL="postgresql://[user]:[password]@[host]/neondb?sslmode=require"     # Neon direct URL for migrations
 ```
+
+**Note:** `DATABASE_URL` should use the Neon pooler host (contains `-pooler`), and `DIRECT_URL` should use the direct host (no `-pooler`).
 
 ### 4. Initialize the Database
 Sync your Prisma schema with the database. This will create the necessary tables.
@@ -77,6 +90,17 @@ Open [http://localhost:3000](http://localhost:3000) in your browser to see the r
 
 ---
 
+## ✅ Scripts
+
+```bash
+npm run dev
+npm run build
+npm run start
+npm run lint
+```
+
+---
+
 ## 📂 Project Structure
 
 ```
@@ -88,9 +112,13 @@ Open [http://localhost:3000](http://localhost:3000) in your browser to see the r
     ├── app/                # Next.js App Router pages
     │   ├── globals.css     # Global styles
     │   ├── layout.tsx      # Root layout
+    │   ├── actions.ts      # Server Actions (mutations + queries)
     │   └── page.tsx        # Main page component
+    │   └── components/     # Expense UI components
+    ├── components/         # UI primitives (buttons, inputs, select)
     └── lib/
-        └── db.ts           # Prisma client instance
+        ├── db.ts           # Prisma client instance (singleton)
+        └── schema.ts       # Zod validation + shared types
 ```
 
 ---
@@ -103,18 +131,27 @@ This application is optimized for deployment on [Vercel](https://vercel.com/).
 
 ---
 
-## 🧠 Design Decisions
+## 🧠 Design Decisions & Trade-offs
 
-- **Precision**: `Decimal(10,2)` ensures currency math is exact and avoids floating point drift.
-- **Reliability**: Client-side `idempotencyKey` prevents duplicate inserts on retries and double-clicks.
-- **Performance**: Indexes on `category` and `date` keep filtered views efficient at scale.
-- **Scalability**: Server Actions + a Prisma singleton reduce connection churn in serverless.
+### Financial Data Integrity (Decimal vs. Float)
+- **Precision:** PostgreSQL `Decimal(10, 2)` prevents floating point drift (e.g., `0.1 + 0.2 !== 0.3`).
+- **Transport:** Amounts are serialized as strings before returning to Client Components.
 
----
+### Network Resilience & Idempotency
+- **Client-side keys:** A UUID `idempotencyKey` is generated on mount and after successful submit.
+- **Database enforcement:** A unique constraint ensures retries return the original record.
 
-## ⚖️ Trade-offs
+### Performance & Scalability
+- **Indexes:** `category` and `date` are indexed for $O(\log n)$ filters and sorts.
+- **Server Actions:** Mutations and queries run on the server to keep logic secure and fast.
+- **Prisma singleton:** Prevents connection churn in serverless environments.
 
-- Chose the native HTML `select` (styled) instead of a heavier UI abstraction to keep accessibility and reliability high within the 4-hour scope.
+### UX & Reliability
+- **Transitions:** `useTransition` keeps the UI responsive during filter changes.
+- **Error handling:** Local error state + global `error.tsx` provide clear fallback and retry.
+
+### Trade-offs
+- **Native select:** Standard HTML `select` (styled) was chosen for reliability and accessibility over more complex UI abstractions within the 4-hour scope.
 
 ---
 
