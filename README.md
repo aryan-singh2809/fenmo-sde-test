@@ -1,36 +1,108 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+<div align="center">
 
-## Getting Started
+# Fenmo SDE Tech Assessment
 
-First, run the development server:
+![Next.js](https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js)
+![React](https://img.shields.io/badge/React-19-blue?style=for-the-badge&logo=react)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=for-the-badge&logo=typescript)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-38B2AC?style=for-the-badge&logo=tailwind-css)
+![Prisma](https://img.shields.io/badge/Prisma-6-2D3748?style=for-the-badge&logo=prisma)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-darkblue?style=for-the-badge&logo=postgresql)
 
+A high-performance web application built for the Fenmo SDE Technical Assessment. This project leverages the latest capabilities of Next.js 16, React Compiler, and Tailwind CSS v4 to deliver a seamless user experience and a highly optimized developer workflow.
+
+</div>
+
+## 🚀 Live Demo
+
+**View the application here:** [Your Vercel URL will go here]
+
+---
+
+## 🛠 Tech Stack & Features
+
+- **Framework**: [Next.js 16](https://nextjs.org/) (App Router)
+- **Language**: [TypeScript](https://www.typescriptlang.org/)
+- **Database**: [PostgreSQL](https://www.postgresql.org/) (Managed via [Neon.tech](https://neon.tech/))
+- **ORM**: [Prisma](https://www.prisma.io/)
+- **Styling**: [Tailwind CSS v4](https://tailwindcss.com/) (PostCSS Engine)
+- **Deployment**: [Vercel](https://vercel.com/)
+- **Performance**:
+    - **React Compiler**: Automatic memoization and optimized re-renders.
+    - **Turbopack**: Lightning-fast development server and builds.
+
+---
+
+## ⚡ Performance & Optimization
+
+This project is built with a focus on modern web performance standards:
+
+- **React Compiler**: The experimental `reactCompiler: true` flag is enabled to automate performance optimizations, eliminating the need for manual `useMemo` or `useCallback`.
+- **Turbopack**: `turbopackFileSystemCacheForDev` is used for rapid HMR (Hot Module Replacement) and development cycles.
+- **Tailwind CSS v4**: Utilizes a new CSS-first engine for zero-runtime styling and minimal CSS bundle sizes.
+- **Data Layer**: Employs a pooled connection to a PostgreSQL instance on Neon, ensuring robust and scalable database interactions in a serverless environment.
+
+---
+
+## 🚦 Getting Started (Local Development)
+
+### 1. Clone the Repository
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone [Your Repo URL]
+cd fenmo-test
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Install Dependencies
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 3. Configure Environment Variables
+Create a `.env` file in the root of the project and add your database connection string:
+```env
+DATABASE_URL="postgresql://[user]:[password]@[host]/neondb?sslmode=require"
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 4. Initialize the Database
+Sync your Prisma schema with the database. This will create the necessary tables.
+```bash
+npx prisma db push
+```
 
-## Learn More
+### 5. Run the Development Server
+```bash
+npm run dev
+```
+Open [http://localhost:3000](http://localhost:3000) in your browser to see the result.
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 📂 Project Structure
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+/
+├── prisma/
+│   └── schema.prisma       # Prisma schema for database models
+├── public/                 # Static assets
+└── src/
+    ├── app/                # Next.js App Router pages
+    │   ├── globals.css     # Global styles
+    │   ├── layout.tsx      # Root layout
+    │   └── page.tsx        # Main page component
+    └── lib/
+        └── db.ts           # Prisma client instance
+```
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 🚀 Deployment
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+This application is optimized for deployment on [Vercel](https://vercel.com/).
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=[Your-Repo-URL])
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
