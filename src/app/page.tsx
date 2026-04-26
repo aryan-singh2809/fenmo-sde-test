@@ -1,47 +1,162 @@
-import { CheckCircle, Database, Rocket, Shield } from "lucide-react";
+"use client";
+
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { ArrowDownUp, Wallet } from "lucide-react";
+import { toast } from "sonner";
+import {
+  expenseCategorySchema,
+  type Expense,
+  type ExpenseCreateInput,
+} from "@/lib/schema";
+import { getExpenseSummaryAction, getExpensesAction } from "./actions";
+import { ExpenseForm } from "./components/ExpenseForm";
+import { ExpenseTable } from "./components/ExpenseTable";
+import { Button } from "@/components/ui/button";
+import { Select, SelectItem } from "@/components/ui/select";
+
+type ExpenseCategory = ExpenseCreateInput["category"];
+type Filters = {
+  category?: ExpenseCategory;
+  sort: "date_desc" | "date_asc";
+};
+
+const categories = expenseCategorySchema.options;
 
 export default function Home() {
+  const [filters, setFilters] = useState<Filters>({ sort: "date_desc" });
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [total, setTotal] = useState("0.00");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isPending, startTransition] = useTransition();
+
+  const currencyFormatter = useMemo(
+    () => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }),
+    []
+  );
+
+  const totalDisplay = currencyFormatter.format(Number(total || 0));
+
+  const fetchData = async (activeFilters: Filters) => {
+    setIsLoading(true);
+    const [expensesResult, summaryResult] = await Promise.all([
+      getExpensesAction({
+        category: activeFilters.category,
+        sort: activeFilters.sort,
+      }),
+      getExpenseSummaryAction({ category: activeFilters.category }),
+    ]);
+
+    if (!expensesResult.success) {
+      toast.error(expensesResult.error);
+      setExpenses([]);
+    } else {
+      setExpenses(expensesResult.data);
+    }
+
+    if (!summaryResult.success) {
+      toast.error(summaryResult.error);
+      setTotal("0.00");
+    } else {
+      setTotal(summaryResult.data.total);
+    }
+
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    startTransition(() => {
+      void fetchData(filters);
+    });
+  }, [filters]);
+
+  const handleCreated = () => {
+    startTransition(() => {
+      void fetchData(filters);
+    });
+  };
+
+  const handleCategoryChange = (value: string) => {
+    setFilters((prev) => ({
+      ...prev,
+      category: value ? (value as ExpenseCategory) : undefined,
+    }));
+  };
+
+  const toggleSort = () => {
+    setFilters((prev) => ({
+      ...prev,
+      sort: prev.sort === "date_desc" ? "date_asc" : "date_desc",
+    }));
+  };
+
+  const isBusy = isLoading || isPending;
+
   return (
-    <main className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col items-center justify-center p-6 font-sans">
-      <div className="max-w-2xl w-full space-y-8 text-center">
-        
-        {/* Header Section */}
-        <div className="space-y-4">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-medium">
-            <CheckCircle size={16} />
-            Environment Verified
+    <main className="min-h-screen bg-neutral-950 text-neutral-100">
+      <div className="mx-auto w-full max-w-6xl px-6 py-10 space-y-8">
+        <header className="space-y-3">
+          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-300">
+            Reliable Expense Operations
           </div>
-          <h1 className="text-5xl font-bold tracking-tight bg-linear-to-b from-white to-neutral-400 bg-clip-text text-transparent">
-            Fenmo SDE Readiness
+          <h1 className="text-4xl font-semibold tracking-tight text-neutral-100">
+            Expense Tracker
           </h1>
-          <p className="text-neutral-400 text-lg">
-            Next.js 16 + React 19 + Tailwind v4 + Prisma + NeonDB
+          <p className="text-neutral-400">
+            Track spending, filter by category, and monitor totals in real time.
           </p>
-        </div>
+        </header>
 
-        {/* Status Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-left">
-          <div className="p-4 rounded-xl border border-neutral-800 bg-neutral-900/50">
-            <Rocket className="text-blue-400 mb-2" size={20} />
-            <h3 className="font-semibold text-neutral-200">Deployment</h3>
-            <p className="text-xs text-neutral-500">CI/CD Pipeline Active</p>
-          </div>
-          <div className="p-4 rounded-xl border border-neutral-800 bg-neutral-900/50">
-            <Database className="text-purple-400 mb-2" size={20} />
-            <h3 className="font-semibold text-neutral-200">Database</h3>
-            <p className="text-xs text-neutral-500">NeonDB Connection Live</p>
-          </div>
-          <div className="p-4 rounded-xl border border-neutral-800 bg-neutral-900/50">
-            <Shield className="text-emerald-400 mb-2" size={20} />
-            <h3 className="font-semibold text-neutral-200">Optimized</h3>
-            <p className="text-xs text-neutral-500">React Compiler Enabled</p>
-          </div>
-        </div>
+        <section className="grid grid-cols-1 gap-6 lg:grid-cols-[1.05fr_1.95fr]">
+          <ExpenseForm onCreated={handleCreated} />
 
-        {/* Footer info */}
-        <div className="pt-8 border-t border-neutral-800 text-neutral-600 text-sm">
-          Awaiting problem statement. Ready to build.
-        </div>
+          <div className="space-y-5">
+            <div className="rounded-2xl border border-neutral-800 bg-neutral-900/60 p-6 shadow-[0_0_40px_rgba(16,185,129,0.08)]">
+              <div className="flex items-center gap-3 text-sm text-neutral-400">
+                <Wallet size={18} className="text-emerald-300" />
+                Total Expenses
+              </div>
+              <div className="mt-3 text-3xl font-semibold text-neutral-100">
+                {isBusy ? (
+                  <span className="inline-flex h-9 w-40 animate-pulse rounded-lg bg-neutral-800" />
+                ) : (
+                  totalDisplay
+                )}
+              </div>
+              <p className="mt-2 text-xs text-neutral-500">
+                Reflects the currently applied filters.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-neutral-800 bg-neutral-900/40 p-4">
+              <Select
+                value={filters.category ?? ""}
+                onValueChange={handleCategoryChange}
+                className="min-w-45"
+              >
+                <SelectItem value="">All categories</SelectItem>
+                {categories.map((category) => (
+                  <SelectItem key={category} value={category}>
+                    {category.charAt(0) + category.slice(1).toLowerCase()}
+                  </SelectItem>
+                ))}
+              </Select>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={toggleSort}
+                className="gap-2"
+              >
+                <ArrowDownUp size={16} />
+                Sort by {filters.sort === "date_desc" ? "Newest" : "Oldest"}
+              </Button>
+              {isBusy && (
+                <span className="text-xs text-neutral-500">Updating...</span>
+              )}
+            </div>
+
+            <ExpenseTable expenses={expenses} isLoading={isBusy} />
+          </div>
+        </section>
       </div>
     </main>
   );
