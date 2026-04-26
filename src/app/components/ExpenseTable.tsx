@@ -1,5 +1,10 @@
-import { Receipt } from "lucide-react";
+"use client";
+
+import { useState, useTransition } from "react";
+import { Receipt, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import type { Expense } from "@/lib/schema";
+import { deleteExpenseAction } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 
 type ExpenseTableProps = {
@@ -8,6 +13,7 @@ type ExpenseTableProps = {
   emptyHint?: string;
   emptyActionLabel?: string;
   onEmptyAction?: () => void;
+  onDeleted?: () => void;
 };
 
 const currencyFormatter = new Intl.NumberFormat("en-IN", {
@@ -29,12 +35,64 @@ const formatDate = (value: Date | string) => {
   return dateFormatter.format(date);
 };
 
+function DeleteButton({
+  expenseId,
+  onDeleted,
+}: {
+  expenseId: string;
+  onDeleted?: () => void;
+}) {
+  const [isPending, startTransition] = useTransition();
+  const [confirming, setConfirming] = useState(false);
+
+  const handleDelete = () => {
+    if (!confirming) {
+      setConfirming(true);
+      // Auto-reset confirm state after 3 seconds
+      setTimeout(() => setConfirming(false), 3000);
+      return;
+    }
+
+    startTransition(async () => {
+      const result = await deleteExpenseAction(expenseId);
+      if (!result.success) {
+        toast.error(result.error);
+      } else {
+        toast.success("Expense deleted");
+        onDeleted?.();
+      }
+      setConfirming(false);
+    });
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleDelete}
+      disabled={isPending}
+      className={`inline-flex items-center justify-center rounded-lg p-1.5 transition-colors ${
+        confirming
+          ? "bg-rose-500/20 text-rose-300 hover:bg-rose-500/30"
+          : "text-neutral-500 hover:bg-neutral-800 hover:text-neutral-300"
+      } disabled:opacity-50`}
+      title={confirming ? "Click again to confirm" : "Delete expense"}
+    >
+      {isPending ? (
+        <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+      ) : (
+        <Trash2 size={15} />
+      )}
+    </button>
+  );
+}
+
 export function ExpenseTable({
   expenses,
   isLoading,
   emptyHint,
   emptyActionLabel,
   onEmptyAction,
+  onDeleted,
 }: ExpenseTableProps) {
   if (isLoading) {
     return (
@@ -81,11 +139,12 @@ export function ExpenseTable({
             <th className="px-4 py-3">Category</th>
             <th className="px-4 py-3">Date</th>
             <th className="px-4 py-3 text-right">Amount</th>
+            <th className="w-12 px-2 py-3" />
           </tr>
         </thead>
         <tbody className="divide-y divide-neutral-800">
           {expenses.map((expense) => (
-            <tr key={expense.id} className="text-neutral-300">
+            <tr key={expense.id} className="group text-neutral-300">
               <td className="px-4 py-3 font-medium text-neutral-100">
                 {expense.description}
               </td>
@@ -96,6 +155,9 @@ export function ExpenseTable({
               <td className="px-4 py-3">{formatDate(expense.date)}</td>
               <td className="px-4 py-3 text-right font-semibold text-emerald-300">
                 {formatAmount(expense.amount)}
+              </td>
+              <td className="px-2 py-3 text-center opacity-0 transition-opacity group-hover:opacity-100">
+                <DeleteButton expenseId={expense.id} onDeleted={onDeleted} />
               </td>
             </tr>
           ))}

@@ -285,3 +285,33 @@ export async function getExpenseSummaryAction(filters: {
     return { success: false, error: formatZodError(error) };
   }
 }
+
+export async function deleteExpenseAction(
+  expenseId: string
+): Promise<ActionResponse<{ deleted: boolean }>> {
+  try {
+    const user = await requireUser();
+
+    // Verify ownership before deleting — prevents users from deleting others' expenses
+    const expense = await db.expense.findUnique({
+      where: { id: expenseId },
+      select: { userId: true },
+    });
+
+    if (!expense) {
+      return { success: false, error: "Expense not found" };
+    }
+
+    if (expense.userId !== user.id) {
+      return { success: false, error: "Unauthorized" };
+    }
+
+    await db.expense.delete({
+      where: { id: expenseId },
+    });
+
+    return { success: true, data: { deleted: true } };
+  } catch (error) {
+    return { success: false, error: formatZodError(error) };
+  }
+}

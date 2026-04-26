@@ -205,6 +205,7 @@ export function Dashboard({ user }: DashboardProps) {
               isLoading={isBusy}
               emptyActionLabel={filters.category ? "Clear filters" : undefined}
               onEmptyAction={filters.category ? clearFilters : undefined}
+              onDeleted={handleCreated}
               emptyHint={
                 filters.category
                   ? "No expenses match this category yet."
