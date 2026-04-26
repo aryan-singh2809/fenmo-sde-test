@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { ArrowDownUp, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -27,6 +27,7 @@ export default function Home() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [total, setTotal] = useState("0.00");
   const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const currencyFormatter = useMemo(
@@ -34,10 +35,14 @@ export default function Home() {
     []
   );
 
-  const totalDisplay = currencyFormatter.format(Number(total || 0));
+  const totalDisplay = useMemo(
+    () => currencyFormatter.format(Number(total || 0)),
+    [currencyFormatter, total]
+  );
 
-  const fetchData = async (activeFilters: Filters) => {
+  const fetchData = useCallback(async (activeFilters: Filters) => {
     setIsLoading(true);
+    setErrorMessage(null);
     const [expensesResult, summaryResult] = await Promise.all([
       getExpensesAction({
         category: activeFilters.category,
@@ -49,6 +54,7 @@ export default function Home() {
     if (!expensesResult.success) {
       toast.error(expensesResult.error);
       setExpenses([]);
+      setErrorMessage(expensesResult.error);
     } else {
       setExpenses(expensesResult.data);
     }
@@ -56,38 +62,49 @@ export default function Home() {
     if (!summaryResult.success) {
       toast.error(summaryResult.error);
       setTotal("0.00");
+      setErrorMessage(summaryResult.error);
     } else {
       setTotal(summaryResult.data.total);
     }
 
     setIsLoading(false);
-  };
+  }, []);
 
   useEffect(() => {
     startTransition(() => {
       void fetchData(filters);
     });
-  }, [filters]);
+  }, [fetchData, filters]);
 
-  const handleCreated = () => {
+  const handleCreated = useCallback(() => {
     startTransition(() => {
       void fetchData(filters);
     });
-  };
+  }, [fetchData, filters]);
 
-  const handleCategoryChange = (value: string) => {
+  const handleCategoryChange = useCallback((value: string) => {
     setFilters((prev) => ({
       ...prev,
       category: value ? (value as ExpenseCategory) : undefined,
     }));
-  };
+  }, []);
 
-  const toggleSort = () => {
+  const toggleSort = useCallback(() => {
     setFilters((prev) => ({
       ...prev,
       sort: prev.sort === "date_desc" ? "date_asc" : "date_desc",
     }));
-  };
+  }, []);
+
+  const clearFilters = useCallback(() => {
+    setFilters((prev) => ({ sort: prev.sort }));
+  }, []);
+
+  const handleRetry = useCallback(() => {
+    startTransition(() => {
+      void fetchData(filters);
+    });
+  }, [fetchData, filters]);
 
   const isBusy = isLoading || isPending;
 
@@ -153,8 +170,28 @@ export default function Home() {
                 <span className="text-xs text-neutral-500">Updating...</span>
               )}
             </div>
+            {errorMessage && !isBusy && (
+              <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <span>{errorMessage}</span>
+                  <Button type="button" variant="ghost" onClick={handleRetry}>
+                    Retry
+                  </Button>
+                </div>
+              </div>
+            )}
 
-            <ExpenseTable expenses={expenses} isLoading={isBusy} />
+            <ExpenseTable
+              expenses={expenses}
+              isLoading={isBusy}
+              emptyActionLabel={filters.category ? "Clear filters" : undefined}
+              onEmptyAction={filters.category ? clearFilters : undefined}
+              emptyHint={
+                filters.category
+                  ? "No expenses match this category yet."
+                  : "Add a new expense to see it here."
+              }
+            />
           </div>
         </section>
       </div>

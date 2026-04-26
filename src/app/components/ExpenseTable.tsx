@@ -1,9 +1,13 @@
 import { Receipt } from "lucide-react";
 import type { Expense } from "@/lib/schema";
+import { Button } from "@/components/ui/button";
 
 type ExpenseTableProps = {
   expenses: Expense[];
   isLoading?: boolean;
+  emptyHint?: string;
+  emptyActionLabel?: string;
+  onEmptyAction?: () => void;
 };
 
 const currencyFormatter = new Intl.NumberFormat("en-IN", {
@@ -25,7 +29,13 @@ const formatDate = (value: Date | string) => {
   return dateFormatter.format(date);
 };
 
-export function ExpenseTable({ expenses, isLoading }: ExpenseTableProps) {
+export function ExpenseTable({
+  expenses,
+  isLoading,
+  emptyHint,
+  emptyActionLabel,
+  onEmptyAction,
+}: ExpenseTableProps) {
   if (isLoading) {
     return (
       <div className="space-y-3 rounded-2xl border border-neutral-800 bg-neutral-900/50 p-5">
@@ -50,9 +60,14 @@ export function ExpenseTable({ expenses, isLoading }: ExpenseTableProps) {
             No expenses found
           </p>
           <p className="text-xs text-neutral-500">
-            Add a new expense to see it here.
+            {emptyHint ?? "Add a new expense to see it here."}
           </p>
         </div>
+        {emptyActionLabel && onEmptyAction && (
+          <Button type="button" variant="ghost" onClick={onEmptyAction}>
+            {emptyActionLabel}
+          </Button>
+        )}
       </div>
     );
   }

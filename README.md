@@ -103,6 +103,96 @@ This application is optimized for deployment on [Vercel](https://vercel.com/).
 
 ---
 
+## 🧠 Design Decisions
+
+- **Precision**: `Decimal(10,2)` ensures currency math is exact and avoids floating point drift.
+- **Reliability**: Client-side `idempotencyKey` prevents duplicate inserts on retries and double-clicks.
+- **Performance**: Indexes on `category` and `date` keep filtered views efficient at scale.
+- **Scalability**: Server Actions + a Prisma singleton reduce connection churn in serverless.
+
+---
+
+## ⚖️ Trade-offs
+
+- Chose the native HTML `select` (styled) instead of a heavier UI abstraction to keep accessibility and reliability high within the 4-hour scope.
+
+---
+
+## 🧪 Suggested Tests (Vitest)
+
+```ts
+import { describe, expect, it } from "vitest";
+import { expenseCreateSchema } from "@/lib/schema";
+
+describe("expenseCreateSchema", () => {
+    it("rejects negative amounts", () => {
+        const result = expenseCreateSchema.safeParse({
+            idempotencyKey: "test-key-1234",
+            amount: "-1.00",
+            date: "2026-04-26",
+            category: "FOOD",
+            description: "Test",
+        });
+
+        expect(result.success).toBe(false);
+    });
+});
+```
+
+```ts
+import { describe, expect, it, vi } from "vitest";
+import { createExpenseAction } from "@/app/actions";
+
+vi.mock("@/lib/db", () => ({
+    db: {
+        expense: {
+            findUnique: vi.fn().mockResolvedValue({
+                id: "expense-1",
+                idempotencyKey: "same-key",
+                amount: { toString: () => "10.00" },
+                date: new Date("2026-04-26"),
+                category: "FOOD",
+                description: "Coffee",
+                createdAt: new Date(),
+                updatedAt: new Date(),
+            }),
+            create: vi.fn(),
+        },
+    },
+}));
+
+describe("createExpenseAction", () => {
+    it("returns existing record for idempotency key", async () => {
+        const result = await createExpenseAction({
+            idempotencyKey: "same-key",
+            amount: "10.00",
+            date: "2026-04-26",
+            category: "FOOD",
+            description: "Coffee",
+        });
+
+        expect(result.success).toBe(true);
+    });
+});
+```
+
+```ts
+import { describe, expect, it } from "vitest";
+
+const formatCurrency = (value: string) =>
+    new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(
+        Number(value || 0)
+    );
+
+describe("formatCurrency", () => {
+    it("formats INR amounts", () => {
+        expect(formatCurrency("1234.56")).toBe("₹1,234.56");
+    });
+});
+```
+
+---
+
 ## 📄 License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
