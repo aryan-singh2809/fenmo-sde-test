@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useId } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ClipboardCheck } from "lucide-react";
@@ -32,14 +32,12 @@ const createIdempotencyKey = () => {
 };
 
 export function ExpenseForm({ onCreated }: ExpenseFormProps) {
-  const [idempotencyKey, setIdempotencyKey] = useState(() =>
-    createIdempotencyKey()
-  );
+  const headerId = useId();
 
   const form = useForm<ExpenseCreateInput>({
     resolver: zodResolver(expenseCreateSchema, undefined, { raw: true }),
     defaultValues: {
-      idempotencyKey,
+      idempotencyKey: "",
       amount: "",
       date: getToday(),
       category: "FOOD",
@@ -48,6 +46,15 @@ export function ExpenseForm({ onCreated }: ExpenseFormProps) {
   });
 
   const { isSubmitting, errors } = form.formState;
+
+  useEffect(() => {
+    const key = createIdempotencyKey();
+    form.setValue("idempotencyKey", key, {
+      shouldDirty: false,
+      shouldValidate: false,
+      shouldTouch: false,
+    });
+  }, [form]);
 
   const onSubmit = form.handleSubmit(async (values) => {
     const result = await createExpenseAction(values);
@@ -59,7 +66,6 @@ export function ExpenseForm({ onCreated }: ExpenseFormProps) {
 
     toast.success("Expense saved");
     const nextKey = createIdempotencyKey();
-    setIdempotencyKey(nextKey);
 
     form.reset({
       idempotencyKey: nextKey,
@@ -71,8 +77,6 @@ export function ExpenseForm({ onCreated }: ExpenseFormProps) {
 
     onCreated?.();
   });
-
-  const headerId = useMemo(() => `expense-form-${idempotencyKey}`, [idempotencyKey]);
 
   return (
     <form
