@@ -112,9 +112,19 @@ export function ExpenseForm({ onCreated }: ExpenseFormProps) {
 
       <div className="space-y-2">
         <label className="text-xs font-semibold text-neutral-400">Description</label>
-        <Input
-          placeholder="Coffee with the team"
-          {...form.register("description")}
+        <Controller
+          control={form.control}
+          name="description"
+          render={({ field }) => (
+            <Input
+              placeholder="Coffee with the team"
+              value={field.value ?? ""}
+              onChange={(event) => field.onChange(event.target.value)}
+              onBlur={field.onBlur}
+              name={field.name}
+              ref={field.ref}
+            />
+          )}
         />
         {errors.description && (
           <p className="text-xs text-red-400">{errors.description.message}</p>
@@ -124,11 +134,23 @@ export function ExpenseForm({ onCreated }: ExpenseFormProps) {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="space-y-2">
           <label className="text-xs font-semibold text-neutral-400">Amount</label>
-          <Input
-            placeholder="0.00"
-            inputMode="decimal"
-            autoComplete="off"
-            {...form.register("amount")}
+          <Controller
+            control={form.control}
+            name="amount"
+            render={({ field }) => (
+              <Input
+                placeholder="0.00"
+                inputMode="decimal"
+                autoComplete="off"
+                value={field.value ?? ""}
+                onChange={(event) =>
+                  field.onChange(event.target.value.replace(",", "."))
+                }
+                onBlur={field.onBlur}
+                name={field.name}
+                ref={field.ref}
+              />
+            )}
           />
           {errors.amount && (
             <p className="text-xs text-red-400">{errors.amount.message}</p>
@@ -136,7 +158,21 @@ export function ExpenseForm({ onCreated }: ExpenseFormProps) {
         </div>
         <div className="space-y-2">
           <label className="text-xs font-semibold text-neutral-400">Date</label>
-          <Input type="date" autoComplete="off" {...form.register("date")} />
+          <Controller
+            control={form.control}
+            name="date"
+            render={({ field }) => (
+              <Input
+                type="date"
+                autoComplete="off"
+                value={field.value ?? ""}
+                onChange={(event) => field.onChange(event.target.value)}
+                onBlur={field.onBlur}
+                name={field.name}
+                ref={field.ref}
+              />
+            )}
+          />
           {errors.date && (
             <p className="text-xs text-red-400">{errors.date.message}</p>
           )}
