@@ -4,7 +4,7 @@
 
 ![Next.js](https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js)
 ![React](https://img.shields.io/badge/React-19-blue?style=for-the-badge&logo=react)
-![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=for-the-badge&logo=typescript)
+![TypeScript](https://img.shields.io/badge/TypeScript-6-blue?style=for-the-badge&logo=typescript)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-38B2AC?style=for-the-badge&logo=tailwind-css)
 ![Prisma](https://img.shields.io/badge/Prisma-6-2D3748?style=for-the-badge&logo=prisma)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-darkblue?style=for-the-badge&logo=postgresql)
@@ -22,10 +22,12 @@ A high-performance web application built for the Fenmo SDE Technical Assessment.
 ## 🛠 Tech Stack & Features
 
 - **Framework**: [Next.js 16](https://nextjs.org/) (App Router)
-- **Language**: [TypeScript](https://www.typescriptlang.org/)
+- **Language**: [TypeScript 6](https://www.typescriptlang.org/)
 - **Database**: [PostgreSQL](https://www.postgresql.org/) (Managed via [Neon.tech](https://neon.tech/))
-- **ORM**: [Prisma](https://www.prisma.io/)
+- **ORM**: [Prisma 6](https://www.prisma.io/)
+- **Authentication**: [NextAuth v5](https://authjs.dev/) (Credentials provider with JWT sessions)
 - **Styling**: [Tailwind CSS v4](https://tailwindcss.com/) (PostCSS Engine)
+- **Validation**: [Zod](https://zod.dev/) + [React Hook Form](https://react-hook-form.com/)
 - **Deployment**: [Vercel](https://vercel.com/)
 - **Performance**:
     - **React Compiler**: Automatic memoization and optimized re-renders.
@@ -35,22 +37,37 @@ A high-performance web application built for the Fenmo SDE Technical Assessment.
 
 ## ✨ Product Highlights
 
+### 🔐 Authentication & Authorization
+- **User registration** with bcrypt password hashing (12 rounds).
+- **JWT-based sessions** via NextAuth v5 Credentials provider.
+- **Auto sign-in** after registration — users are redirected straight to the dashboard.
+- **Route protection** via Next.js 16 Proxy (formerly Middleware) — unauthenticated users are redirected to `/login`, authenticated users are redirected away from public routes.
+- **Per-user data isolation** — users can only view, create, and delete their own expenses.
+
+### 💰 Expense Management
+- **Create expenses** with description, amount, date, and category.
+- **Delete expenses** with a two-click confirmation pattern (prevents accidental deletions).
 - **Idempotent writes** via client-generated UUIDs and a unique DB constraint.
-- **Precise money handling** with Prisma `Decimal(10,2)`.
-- **Server Actions** for secure data mutations and queries.
-- **Real-time summary** that respects filters and sorting.
-- **Resilient UX** with loading states, retry UI, and an error boundary.
+- **Precise money handling** with Prisma `Decimal(10,2)` — no floating-point drift.
+- **Real-time summary** that recalculates totals after any create or delete operation.
+- **Filter by category** and **sort by date** (newest/oldest).
+
+### 🎨 UX & Reliability
+- **Server Actions** for all data mutations and queries — no API routes needed for CRUD.
+- **Loading skeletons** and transition states keep the UI responsive.
+- **Error boundary** (`error.tsx`) with retry functionality.
+- **Toast notifications** (via Sonner) for success/error feedback.
+- **Responsive design** optimized for desktop and mobile.
 
 ---
 
 ## ⚡ Performance & Optimization
 
-This project is built with a focus on modern web performance standards:
-
-- **React Compiler**: The experimental `reactCompiler: true` flag is enabled to automate performance optimizations, eliminating the need for manual `useMemo` or `useCallback`.
-- **Turbopack**: `turbopackFileSystemCacheForDev` is used for rapid HMR (Hot Module Replacement) and development cycles.
-- **Tailwind CSS v4**: Utilizes a new CSS-first engine for zero-runtime styling and minimal CSS bundle sizes.
-- **Data Layer**: Employs a pooled connection to a PostgreSQL instance on Neon, ensuring robust and scalable database interactions in a serverless environment.
+- **React Compiler**: The `reactCompiler: true` flag automates performance optimizations, eliminating the need for manual `useMemo` or `useCallback`.
+- **Turbopack**: `turbopackFileSystemCacheForDev` enables rapid HMR (Hot Module Replacement).
+- **Tailwind CSS v4**: CSS-first engine for zero-runtime styling and minimal bundle sizes.
+- **Data Layer**: Pooled connection to PostgreSQL on Neon for robust serverless database interactions.
+- **Prisma Singleton**: Prevents connection pool exhaustion during development with hot reloading.
 
 ---
 
@@ -58,7 +75,7 @@ This project is built with a focus on modern web performance standards:
 
 ### 1. Clone the Repository
 ```bash
-git clone [Your Repo URL]
+git clone https://github.com/aryan-singh2809/fenmo-sde-test.git
 cd fenmo-test
 ```
 
@@ -68,16 +85,22 @@ npm install
 ```
 
 ### 3. Configure Environment Variables
-Create a `.env` file in the root of the project and add your database connection string:
+Create a `.env` file in the root of the project:
 ```env
-DATABASE_URL="postgresql://[user]:[password]@[host]/neondb?sslmode=require"   # Neon pooler URL for the app
-DIRECT_URL="postgresql://[user]:[password]@[host]/neondb?sslmode=require"     # Neon direct URL for migrations
+DATABASE_URL="postgresql://[user]:[password]@[host]-pooler/neondb?sslmode=require"
+DIRECT_URL="postgresql://[user]:[password]@[host]/neondb?sslmode=require"
+AUTH_SECRET="your-random-secret-here"
+AUTH_URL="http://localhost:3000"
 ```
 
-**Note:** `DATABASE_URL` should use the Neon pooler host (contains `-pooler`), and `DIRECT_URL` should use the direct host (no `-pooler`).
+| Variable | Description |
+|---|---|
+| `DATABASE_URL` | Neon pooler URL (contains `-pooler` in hostname) |
+| `DIRECT_URL` | Neon direct URL for migrations |
+| `AUTH_SECRET` | Random secret for signing JWT tokens (`openssl rand -hex 32`) |
+| `AUTH_URL` | Base URL of the app (`http://localhost:3000` for dev, your domain for production) |
 
 ### 4. Initialize the Database
-Sync your Prisma schema with the database. This will create the necessary tables.
 ```bash
 npx prisma db push
 ```
@@ -86,17 +109,17 @@ npx prisma db push
 ```bash
 npm run dev
 ```
-Open [http://localhost:3000](http://localhost:3000) in your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
 ## ✅ Scripts
 
 ```bash
-npm run dev
-npm run build
-npm run start
-npm run lint
+npm run dev       # Start development server (Turbopack)
+npm run build     # Production build
+npm run start     # Start production server
+npm run lint      # Run ESLint
 ```
 
 ---
@@ -106,19 +129,30 @@ npm run lint
 ```
 /
 ├── prisma/
-│   └── schema.prisma       # Prisma schema for database models
-├── public/                 # Static assets
+│   └── schema.prisma           # Database models (User, Expense)
+├── public/                     # Static assets
 └── src/
-    ├── app/                # Next.js App Router pages
-    │   ├── globals.css     # Global styles
-    │   ├── layout.tsx      # Root layout
-    │   ├── actions.ts      # Server Actions (mutations + queries)
-    │   └── page.tsx        # Main page component
-    │   └── components/     # Expense UI components
-    ├── components/         # UI primitives (buttons, inputs, select)
-    └── lib/
-        ├── db.ts           # Prisma client instance (singleton)
-        └── schema.ts       # Zod validation + shared types
+    ├── auth.ts                 # NextAuth v5 configuration
+    ├── proxy.ts                # Route protection (Next.js 16 Proxy)
+    ├── app/
+    │   ├── globals.css         # Global styles
+    │   ├── layout.tsx          # Root layout with Toaster
+    │   ├── actions.ts          # Server Actions (auth + CRUD)
+    │   ├── page.tsx            # Dashboard page (protected)
+    │   ├── error.tsx           # Error boundary
+    │   ├── login/page.tsx      # Login page
+    │   ├── register/page.tsx   # Registration page
+    │   ├── api/auth/[...nextauth]/route.ts  # NextAuth API route
+    │   └── components/
+    │       ├── Dashboard.tsx    # Main dashboard with filters & summary
+    │       ├── ExpenseForm.tsx  # New expense form (idempotent)
+    │       └── ExpenseTable.tsx # Expense list with delete buttons
+    ├── components/ui/          # UI primitives (Button, Input, Select)
+    ├── lib/
+    │   ├── db.ts               # Prisma client singleton
+    │   └── schema.ts           # Zod validation schemas & types
+    └── types/
+        └── next-auth.d.ts      # NextAuth type augmentation
 ```
 
 ---
@@ -127,11 +161,25 @@ npm run lint
 
 This application is optimized for deployment on [Vercel](https://vercel.com/).
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=[Your-Repo-URL])
+**Required Vercel environment variables:**
+
+| Variable | Value |
+|---|---|
+| `DATABASE_URL` | Your Neon pooler connection string |
+| `DIRECT_URL` | Your Neon direct connection string |
+| `AUTH_SECRET` | Random 32+ char hex secret |
+| `AUTH_URL` | `https://your-domain.vercel.app` |
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/aryan-singh2809/fenmo-sde-test)
 
 ---
 
 ## 🧠 Design Decisions & Trade-offs
+
+### Authentication
+- **NextAuth v5 (Credentials):** Chosen for self-contained auth without third-party OAuth complexity. Passwords are hashed with bcrypt (12 rounds).
+- **JWT sessions:** Stateless sessions avoid database lookups on every request. User ID is stored in the JWT token.
+- **Proxy-based route protection:** The Next.js 16 Proxy (formerly Middleware) handles auth redirects at the edge, before any page rendering.
 
 ### Financial Data Integrity (Decimal vs. Float)
 - **Precision:** PostgreSQL `Decimal(10, 2)` prevents floating point drift (e.g., `0.1 + 0.2 !== 0.3`).
@@ -141,17 +189,23 @@ This application is optimized for deployment on [Vercel](https://vercel.com/).
 - **Client-side keys:** A UUID `idempotencyKey` is generated on mount and after successful submit.
 - **Database enforcement:** A unique constraint ensures retries return the original record.
 
+### Deletion & Data Consistency
+- **Ownership verification:** Delete operations verify that the expense belongs to the requesting user before proceeding.
+- **Two-click confirmation:** Prevents accidental deletions — first click highlights the button, second click confirms.
+- **Atomic refresh:** After deletion, both the expense list and total summary are re-fetched to ensure consistency.
+
 ### Performance & Scalability
-- **Indexes:** `category` and `date` are indexed for $O(\log n)$ filters and sorts.
+- **Indexes:** `category`, `date`, and `userId` are indexed for $O(\log n)$ filters and sorts.
 - **Server Actions:** Mutations and queries run on the server to keep logic secure and fast.
 - **Prisma singleton:** Prevents connection churn in serverless environments.
 
 ### UX & Reliability
-- **Transitions:** `useTransition` keeps the UI responsive during filter changes.
+- **Transitions:** `useTransition` keeps the UI responsive during filter changes and data mutations.
 - **Error handling:** Local error state + global `error.tsx` provide clear fallback and retry.
 
 ### Trade-offs
-- **Native select:** Standard HTML `select` (styled) was chosen for reliability and accessibility over more complex UI abstractions within the 4-hour scope.
+- **Native select:** Standard HTML `select` (styled) was chosen for reliability and accessibility over more complex UI abstractions.
+- **No pagination:** All expenses are loaded at once. For production with large datasets, cursor-based pagination would be recommended.
 
 ---
 
