@@ -15,7 +15,7 @@ A high-performance web application built for the Fenmo SDE Technical Assessment.
 
 ## 🚀 Live Demo
 
-**View the application here:** [Your Vercel URL will go here]
+**View the application here:** https://fenmo-sde-test.vercel.app/
 
 ---
 
