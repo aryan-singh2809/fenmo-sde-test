@@ -5,11 +5,33 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
-// A simple model to verify the connection
-model ConnectionTest {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  status    String   @default("Connected!")
+enum ExpenseCategory {
+  FOOD
+  TRANSPORT
+  UTILITIES
+  RENT
+  ENTERTAINMENT
+  HEALTH
+  EDUCATION
+  SHOPPING
+  TRAVEL
+  OTHER
+}
+
+model Expense {
+  id              String          @id @default(cuid())
+  amount          Decimal         @db.Decimal(10, 2)
+  category        ExpenseCategory
+  date            DateTime        @db.Date
+  description     String          @db.VarChar(500)
+  idempotencyKey  String          @unique @map("idempotency_key")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  @@index([category])
+  @@index([date])
+  @@map("expenses")
 }
